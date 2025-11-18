@@ -38,7 +38,9 @@ ansible-playbook setup_github_runner.yaml \
   -e "target=k8s" \
   -e "github_repo=youruser/yourrepo" \
   -e "runner_name=project-runner" \
-  -e "runner_token=YOUR_TOKEN"
+  -e "runner_token=YOUR_TOKEN" \
+  -e "user=John" \
+  -e "runner_labels=self-hosted"
 ```
 
 ### vm_manage/update_hostname.yaml

@@ -6,7 +6,6 @@
 ---
 - name: Start minikube
   hosts: "{{ target }}"
-  become: false
 
   tasks:
   - name: Start minikube instance

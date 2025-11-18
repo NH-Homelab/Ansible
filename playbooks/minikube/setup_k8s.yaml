@@ -10,6 +10,7 @@
 
 - name: Install Minikube
   hosts: "{{ target }}"
+  become: yes
   roles:
     - role: gantsign.minikube
       minikube_version: '1.37.0'
@@ -22,6 +23,7 @@
 
 - name: Install Kubectl
   hosts: "{{ target }}"
+  become: yes
 
   tasks:
   - name: Get latest kubectl version
@@ -34,21 +36,18 @@
     file: 
       path: /opt/kubectl-{{ version.content }}
       state: directory
-    become: true
 
   - name: Download latest kubectl release
     uri:
       url: https://dl.k8s.io/release/{{ version.content }}/bin/linux/amd64/kubectl
       dest: /opt/kubectl-{{ version.content }}
     register: kubectl
-    become: true
 
   - name: Download kubectl checksum
     uri:
       url: https://dl.k8s.io/release/{{ version.content }}/bin/linux/amd64/kubectl.sha256
       dest: /opt/kubectl-{{ version.content }}
     register: kubectl
-    become: true
 
   - name: Get kubectl sha256sum
     shell: sha256sum /opt/kubectl-{{ version.content }}/kubectl | cut -d " " -f1
@@ -81,14 +80,12 @@
     file:
       path: "/opt/kubectl-{{ version.content }}/kubectl"
       mode: '0755'
-    become: true
 
   - name: Create symlink to kubectl
     file:
       src: "/opt/kubectl-{{ version.content }}/kubectl"
       dest: "/usr/bin/kubectl"
       state: link
-    become: true
 
 #
 #  Helm
@@ -97,6 +94,7 @@
 
 - name: Install Helm
   hosts: k8s
+  become: yes
 
   tasks:
     - name: Download Helm install script

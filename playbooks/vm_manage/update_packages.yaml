@@ -6,6 +6,7 @@
 ---
 - name: Update all packages
   hosts: "{{ target }}"
+  become: yes
 
   tasks:
   - name: Update apt-get repo and cache

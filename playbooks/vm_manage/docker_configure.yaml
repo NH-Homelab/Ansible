@@ -8,6 +8,8 @@
 ---
 - name: Ensure user is in docker group
   hosts: "{{ target }}"
+  become: yes
+
   tasks:
     - name: Ensure docker group exists
       ansible.builtin.group:

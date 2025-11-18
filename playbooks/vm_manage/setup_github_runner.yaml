@@ -5,14 +5,16 @@
 #  -e "target=minikube" \
 #  -e "github_repo=youruser/yourrepo" \
 #  -e "runner_name=minikube-runner" \
-#  -e "runner_token=YOUR_TOKEN"
+#  -e "runner_token=YOUR_TOKEN" \
+#  -e "user=John" \
+#  -e "runner_labels=self-hosted"
 ---
 - name: Install GitHub Runner
   hosts: "{{ target }}"
   become: yes
 
   vars:
-    runner_dir: /opt/actions-runner
+    runner_dir: "/home/{{ user }}/actions-runner"
 
   tasks:
     - name: Install deps
@@ -36,6 +38,8 @@
         path: "{{ runner_dir }}"
         state: directory
         mode: "0755"
+        owner: "{{ user }}"
+        group: "{{ user }}"
 
     - name: Download runner
       get_url:
@@ -47,23 +51,42 @@
         src: "{{ runner_dir }}/runner.tar.gz"
         dest: "{{ runner_dir }}"
         remote_src: yes
+      become: yes
+      become_user: "{{ user }}"
+
+- name: Start Runner Service
+  hosts: "{{ target }}"
+  
+  vars:
+    runner_dir: "/home/{{ user }}/actions-runner"
+
+  tasks:
+    - name: Remove stale runner config if present
+      file:
+        path: "{{ runner_dir }}/.runner"
+        state: absent
 
     - name: Configure
       command: >
         ./config.sh
+        --unattended
         --url https://github.com/{{ github_repo }}
         --token {{ runner_token }}
         --name {{ runner_name }}
+        --labels {{ runner_labels | default('self-hosted') }}
+        --work _work
       args:
         chdir: "{{ runner_dir }}"
 
     - name: Install service
       command: ./svc.sh install
+      become: yes
       args:
         chdir: "{{ runner_dir }}"
 
     - name: Start service
       command: ./svc.sh start
+      become: yes
       args:
         chdir: "{{ runner_dir }}"
 

@@ -1,0 +1,21 @@
+# Check for existing docker group and ensure user membership
+#
+# Example Usage:
+# ansible-playbook docker_configure.yaml \
+#   -e "target=k8s" \
+#   -e "user=John"
+
+---
+- name: Ensure user is in docker group
+  hosts: "{{ target }}"
+  tasks:
+    - name: Ensure docker group exists
+      ansible.builtin.group:
+        name: docker
+        state: present
+
+    - name: Ensure user is in docker group
+      ansible.builtin.user:
+        name: "{{ user }}"
+        groups: docker
+        append: yes

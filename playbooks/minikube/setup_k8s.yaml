@@ -1,0 +1,119 @@
+# Install minikube, kubectl, and helm on the target machine.
+#
+# Example Usage:
+# ansible-playbook setup_k8s.yaml \
+#   -e "target=k8s" \
+---
+#
+#  Minikube
+#
+
+- name: Install Minikube
+  hosts: "{{ target }}"
+  roles:
+    - role: gantsign.minikube
+      minikube_version: '1.37.0'
+      minikube_architecture: 'amd64'
+      minikube_download_dir: "{{ ansible_facts.env.HOME + '/Downloads' }}"
+
+#
+#  Kubectl
+#
+
+- name: Install Kubectl
+  hosts: "{{ target }}"
+
+  tasks:
+  - name: Get latest kubectl version
+    uri:
+      url: https://dl.k8s.io/release/stable.txt
+      return_content: yes
+    register: version
+
+  - name: create kubectl versioned directory
+    file: 
+      path: /opt/kubectl-{{ version.content }}
+      state: directory
+    become: true
+
+  - name: Download latest kubectl release
+    uri:
+      url: https://dl.k8s.io/release/{{ version.content }}/bin/linux/amd64/kubectl
+      dest: /opt/kubectl-{{ version.content }}
+    register: kubectl
+    become: true
+
+  - name: Download kubectl checksum
+    uri:
+      url: https://dl.k8s.io/release/{{ version.content }}/bin/linux/amd64/kubectl.sha256
+      dest: /opt/kubectl-{{ version.content }}
+    register: kubectl
+    become: true
+
+  - name: Get kubectl sha256sum
+    shell: sha256sum /opt/kubectl-{{ version.content }}/kubectl | cut -d " " -f1
+    register: file_shasum
+
+  - set_fact:
+      shasum1={{ file_shasum.stdout }}
+
+  - debug: var=shasum1
+    run_once: true
+
+  - name: get sha256sum value from file
+    command: cat /opt/kubectl-{{ version.content }}/kubectl.sha256
+    register: downloaded_shasum
+
+  - set_fact:
+      shasum2:{{ downloaded_shasum.stdout }}
+
+  - debug: var=shasum2
+    run_once: true
+
+  - name: Assert that kubectl binary checksum matches
+    assert:
+      that:
+        - file_shasum.stdout == downloaded_shasum.stdout
+      fail_msg: "Checksums do not match."
+      success_msg: "Kubectl checksum verified: OK"
+
+  - name: Change kubectl file permission
+    file:
+      path: "/opt/kubectl-{{ version.content }}/kubectl"
+      mode: '0755'
+    become: true
+
+  - name: Create symlink to kubectl
+    file:
+      src: "/opt/kubectl-{{ version.content }}/kubectl"
+      dest: "/usr/bin/kubectl"
+      state: link
+    become: true
+
+#
+#  Helm
+#
+
+
+- name: Install Helm
+  hosts: k8s
+
+  tasks:
+    - name: Download Helm install script
+      get_url:
+        url: https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3
+        dest: /tmp/get_helm.sh
+        mode: '0755'
+
+    - name: Run Helm install script
+      command: /tmp/get_helm.sh
+      args:
+        creates: /usr/local/bin/helm
+      register: helm_install_result
+      changed_when: false
+
+    - name: Add /usr/local/bin to PATH
+      lineinfile:
+        path: ~/.bashrc
+        line: 'export PATH=$PATH:/usr/local/bin'
+      when: helm_install_result.rc == 0

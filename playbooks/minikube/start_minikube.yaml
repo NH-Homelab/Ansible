@@ -1,0 +1,16 @@
+# Starts the minikube cluster and sets kubectl context.
+#
+# Example Usage:
+# ansible-playbook start_minikube.yaml \
+#   -e "target=k8s"
+---
+- name: Start minikube
+  hosts: "{{ target }}"
+  become: false
+
+  tasks:
+  - name: Start minikube instance
+    command: minikube start --driver=docker
+
+  - name: Set Kubectl context to minikube
+    command: kubectl config use-context minikube

@@ -1,0 +1,69 @@
+# Install a self-hosted github runner on the host. 
+#
+# Example Usage:
+# ansible-playbook setup_github_runner.yaml \
+#  -e "target=minikube" \
+#  -e "github_repo=youruser/yourrepo" \
+#  -e "runner_name=minikube-runner" \
+#  -e "runner_token=YOUR_TOKEN"
+---
+- name: Install GitHub Runner
+  hosts: "{{ target }}"
+  become: yes
+
+  vars:
+    runner_dir: /opt/actions-runner
+
+  tasks:
+    - name: Install deps
+      apt:
+        name: [curl, tar, jq]
+        state: present
+        update_cache: yes
+
+    - name: Get latest runner version
+      uri:
+        url: https://api.github.com/repos/actions/runner/releases/latest
+        return_content: yes
+      register: release_info
+
+    - set_fact:
+        runner_version: "{{ release_info.json.tag_name | regex_replace('^v', '') }}"
+        
+
+    - name: Create directory
+      file:
+        path: "{{ runner_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Download runner
+      get_url:
+        url: "https://github.com/actions/runner/releases/download/v{{ runner_version }}/actions-runner-linux-x64-{{ runner_version }}.tar.gz"
+        dest: "{{ runner_dir }}/runner.tar.gz"
+
+    - name: Extract
+      unarchive:
+        src: "{{ runner_dir }}/runner.tar.gz"
+        dest: "{{ runner_dir }}"
+        remote_src: yes
+
+    - name: Configure
+      command: >
+        ./config.sh
+        --url https://github.com/{{ github_repo }}
+        --token {{ runner_token }}
+        --name {{ runner_name }}
+      args:
+        chdir: "{{ runner_dir }}"
+
+    - name: Install service
+      command: ./svc.sh install
+      args:
+        chdir: "{{ runner_dir }}"
+
+    - name: Start service
+      command: ./svc.sh start
+      args:
+        chdir: "{{ runner_dir }}"
+
